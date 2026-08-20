@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { Client, GatewayIntentBits } from 'discord.js';
+import { OpportunitiesModule } from '../opportunities/opportunities.module';
 import { DISCORD_CLIENT } from './discord.constants';
 import { DiscordService } from './discord.service';
 
 @Module({
+  imports: [OpportunitiesModule],
   providers: [
     {
       provide: DISCORD_CLIENT,
@@ -12,5 +14,6 @@ import { DiscordService } from './discord.service';
     },
     DiscordService,
   ],
+  exports: [DiscordService],
 })
 export class DiscordModule {}
