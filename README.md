@@ -138,5 +138,39 @@ npm run test:e2e
 Pour verifier le style sans modifier de fichier :
 
 ```powershell
-.\node_modules\.bin\eslint.cmd "{src,apps,libs,test}/**/*.ts"
+.\node_modules\.bin\eslint.cmd "{src,test}/**/*.ts"
 ```
+
+## Application web OSRS Helper
+
+La SPA React se trouve dans `apps/web`. Elle utilise React, Vite, Tailwind CSS, shadcn/ui, TanStack
+Query, Zod, Biome et Vitest. Les calculs OSRS sans dépendance de framework sont partagés dans
+`packages/core` avec le bot existant.
+
+Pour la SPA, utilise Node.js 22.12 ou plus récent, ou Node.js 20.19 ou plus récent.
+
+Depuis la racine du dépôt :
+
+```powershell
+npm ci
+npm run dev:web
+npm run build:web
+npm run test:web
+npm run check:web
+```
+
+Le workflow `.github/workflows/pages.yml` construit `apps/web/dist` et le publie sur GitHub Pages
+après un push sur `main` ou un lancement manuel. Dans les paramètres du dépôt, choisis **Settings →
+Pages → Build and deployment → Source: GitHub Actions**. Le chemin de base Vite est actuellement
+`/MAT-OSRS-BOT/` pour le site projet de ce dépôt ; adapte `apps/web/vite.config.ts` si le dépôt est
+renommé ou si un domaine personnalisé est configuré.
+
+### Données de marché de la SPA
+
+La SPA récupère les cotations `latest`, le mapping des items et les agrégats `5m` de l’[API Real-time Prices de l’OSRS Wiki](https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices). Un script Node les valide avec Zod puis écrit un instantané JSON dans `apps/web/public/data/osrs-market.json`. Le navigateur lit ce fichier statique depuis GitHub Pages ; il n’appelle pas l’API source directement.
+
+Le script est lancé avant Vite lors du développement. Pour le rafraîchir manuellement, utilise `npm run refresh:market`. Si la source est indisponible, le script local garde l’instantané précédent ; le workflow Pages exige une collecte valide avant de publier.
+
+Le workflow met à jour le site toutes les cinq minutes avec un User-Agent descriptif. GitHub peut retarder ou ignorer une exécution planifiée sous forte charge et désactive les plannings des dépôts publics sans activité pendant 60 jours ; relance le workflow manuellement depuis l’onglet **Actions** si nécessaire. Les réponses ont leur propre horodatage, affiché dans l’interface. Les prix correspondent aux transactions récentes et ne garantissent pas l’exécution d’un ordre.
+
+La source HiScores ne permet pas la lecture directe dans le navigateur ; la synchronisation automatique reste donc inactive dans cette version. Le catalogue de méthodes de skilling reste fictif jusqu’à l’intégration d’une source documentée.
