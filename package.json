@@ -12,8 +12,8 @@
   "scripts": {
     "build": "npm run build:core && nest build",
     "build:core": "npm run build --workspace=@osrs-helper/core",
-    "dev:web": "npm run build:core && npm run refresh:market && npm run dev --workspace=@osrs-helper/web",
-    "refresh:market": "node apps/web/scripts/refresh-osrs-market.mjs",
+    "dev:web": "npm run refresh:market && npm run dev --workspace=@osrs-helper/web",
+    "refresh:market": "npm run build:core && node apps/web/scripts/refresh-osrs-market.mjs",
     "build:web": "npm run build:core && npm run build --workspace=@osrs-helper/web",
     "preview:web": "npm run preview --workspace=@osrs-helper/web",
     "test:web": "npm run test --workspace=@osrs-helper/web",

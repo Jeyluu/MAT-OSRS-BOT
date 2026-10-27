@@ -126,6 +126,29 @@ La taxe est calculee par unite vendue. Le bot applique le taux GE courant de 2 %
 
 Les regles de taxe evoluent avec le jeu : verifie les [notes Jagex sur la taxe GE](https://secure.runescape.com/m=news/yama-cas--more?oldschool=1) si une mise a jour change les valeurs ou les exemptions.
 
+## Classement flipping de la SPA
+
+Le profil local fournit le capital et la stratégie. Une opportunité utilise `low` comme coût d'achat estimé, `high` comme prix de vente estimé, puis applique la taxe par unité avant le calcul du profit net et du ROI :
+
+```text
+taxe = 0 si l'objet est exempt, sinon min(5 000 000, floor(high × 2 %))
+profit_net_unitaire = high - taxe - low
+quantité = min(floor(capital / low), limite_GE si elle est connue)
+profit_total_estimé = quantité × profit_net_unitaire
+```
+
+Le classement écarte les profits non positifs, les cotations de plus de 15 minutes, les cotations futures de plus d'une minute et les objets sans volume observé. Le rafraîchissement sélectionne jusqu'à 40 items dans plusieurs tranches de prix et récupère leur série OSRS Wiki sur six heures. Le volume affiché additionne les volumes `high` et `low` rapportés par la source ; ce n'est pas une mesure de profondeur d'ordres ni nécessairement un nombre d'objets uniques.
+
+La volatilité est l'écart-type des variations en pourcentage du prix médian entre points adjacents (intervalles jusqu'à 15 minutes), calculée avec au moins 12 variations. Un item sans assez de points d'historique n'est pas classé. Les scores intermédiaires vont de 0 à 100 : profit total logarithmique (référence 10 M GP), ROI (référence 20 %), liquidité logarithmique (référence 10 000 unités de volume), stabilité (0 volatilité = 100, 10 % ou plus = 0), fraîcheur (15 minutes = 0) et capital investi (100 % utilisé = 100).
+
+| Stratégie | Profit | ROI | Liquidité | Stabilité | Fraîcheur | Capital utilisé |
+| --------- | -----: | --: | --------: | --------: | --------: | --------------: |
+| Prudente  | 10 %   | 5 % | 25 %      | 30 %      | 20 %      | 10 %            |
+| Équilibrée | 20 %  | 15 % | 20 %     | 15 %      | 15 %      | 15 %            |
+| Agressive | 30 %   | 25 % | 10 %     | 5 %       | 15 %      | 15 %            |
+
+Le score de risque combine volatilité (50 %), liquidité insuffisante (30 %) et fraîcheur insuffisante (20 %). Les niveaux sont faible jusqu'à 33, modéré jusqu'à 66, puis élevé. Les recommandations restent indicatives : `high` et `low` sont des transactions passées, et les offres du Grand Exchange ne sont pas garanties.
+
 ## Scripts utiles
 
 ```powershell

@@ -3,13 +3,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { App } from './App';
 
+const nowSeconds = Math.floor(Date.now() / 1_000);
 const testSnapshot = {
-  schemaVersion: 1 as const,
+  schemaVersion: 2 as const,
   source: 'OSRS Wiki Real-time Prices API' as const,
   sourceUrl: 'https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices' as const,
-  generatedAt: '2026-10-27T18:00:00.000Z',
-  latestAsOf: 1_793_125_200,
-  fiveMinuteTimestamp: 1_793_125_200,
+  generatedAt: new Date().toISOString(),
+  latestAsOf: nowSeconds,
+  fiveMinuteTimestamp: nowSeconds,
   mappingItemCount: 1,
   quotedItemCount: 1,
   items: [
@@ -20,13 +21,20 @@ const testSnapshot = {
       members: false,
       buyLimit: 18_000,
       high: 115,
-      highTime: 1_793_125_200,
+      highTime: nowSeconds,
       low: 108,
-      lowTime: 1_793_125_140,
+      lowTime: nowSeconds - 60,
       avgHighPrice: 113,
       avgLowPrice: 109,
       highPriceVolume: 12,
       lowPriceVolume: 9,
+      history: Array.from({ length: 16 }, (_, index) => ({
+        timestamp: nowSeconds - (15 - index) * 300,
+        avgHighPrice: 113 + index * 0.1,
+        avgLowPrice: 109 + index * 0.1,
+        highPriceVolume: 12,
+        lowPriceVolume: 9,
+      })),
     },
   ],
 };
@@ -45,6 +53,16 @@ function renderApp() {
 beforeEach(() => {
   cleanup();
   window.localStorage.clear();
+  window.localStorage.setItem(
+    'osrs-helper.preferences.v1',
+    JSON.stringify({
+      username: '',
+      capitalGp: 2_500_000,
+      strategy: 'Équilibrée',
+      skillingStyle: 'Toutes',
+      compactNumbers: false,
+    }),
+  );
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => ({
@@ -55,11 +73,11 @@ beforeEach(() => {
   );
 });
 
-test('affiche les prix réels chargés et navigue vers le skilling', async () => {
+test('affiche les opportunités calculées et navigue vers le skilling', async () => {
   renderApp();
 
   expect(
-    await screen.findByRole('heading', { name: 'Les prix, à la source.' }),
+    await screen.findByRole('heading', { name: 'Des marges, avec leur risque.' }),
   ).toBeInTheDocument();
   expect(screen.getByRole('table')).toHaveTextContent('Nature rune');
 
@@ -70,7 +88,7 @@ test('affiche les prix réels chargés et navigue vers le skilling', async () =>
   ).toBeInTheDocument();
 });
 
-test('filtre le marché par nom d’item', async () => {
+test('filtre les opportunités par nom d’item', async () => {
   renderApp();
   await screen.findByRole('table');
 
@@ -78,7 +96,7 @@ test('filtre le marché par nom d’item', async () => {
     target: { value: 'objet absent' },
   });
 
-  expect(screen.getByText(/aucun item ne correspond à cette recherche/i)).toBeInTheDocument();
+  expect(screen.getByText(/aucune opportunité ne correspond à ces filtres/i)).toBeInTheDocument();
 });
 
 test('filtre les méthodes de skilling par style', () => {

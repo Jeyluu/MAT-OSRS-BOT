@@ -42,8 +42,24 @@ export const fiveMinutePricesResponseSchema = z.object({
   ),
 });
 
+export const timeseriesResponseSchema = z.object({
+  itemId: z.number().int().positive(),
+  startTimestamp: z.number().int().nonnegative(),
+  endTimestamp: z.number().int().nonnegative(),
+  timestep: z.number().int().positive(),
+  data: z.array(
+    z.object({
+      timestamp: z.number().int().nonnegative(),
+      avgHighPrice: nullablePrice,
+      avgLowPrice: nullablePrice,
+      highPriceVolume: nullableVolume,
+      lowPriceVolume: nullableVolume,
+    }),
+  ),
+});
+
 export const osrsMarketSnapshotSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   source: z.literal('OSRS Wiki Real-time Prices API'),
   sourceUrl: z.literal('https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices'),
   generatedAt: z
@@ -72,6 +88,17 @@ export const osrsMarketSnapshotSchema = z.object({
       avgLowPrice: snapshotPrice,
       highPriceVolume: snapshotVolume,
       lowPriceVolume: snapshotVolume,
+      history: z
+        .array(
+          z.object({
+            timestamp: z.number().int().nonnegative(),
+            avgHighPrice: snapshotPrice,
+            avgLowPrice: snapshotPrice,
+            highPriceVolume: snapshotVolume,
+            lowPriceVolume: snapshotVolume,
+          }),
+        )
+        .nullable(),
     }),
   ),
 });

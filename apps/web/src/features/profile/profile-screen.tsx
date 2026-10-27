@@ -145,7 +145,7 @@ export function ProfileScreen() {
                   <span className="text-xs font-semibold text-primary">GP</span>
                 </span>
                 <span className="block text-[10px] text-muted-foreground">
-                  Montant manuel utilisé pour les futures recommandations.
+                  Base de calcul des quantités et profits potentiels.
                 </span>
               </label>
             </div>
@@ -286,8 +286,7 @@ export function ProfileScreen() {
 
           <p className="flex items-start gap-2 px-1 text-[10px] leading-4 text-muted-foreground">
             <CircleHelp aria-hidden="true" className="mt-0.5 shrink-0 text-primary" size={13} /> Le
-            capital et les préférences sont enregistrés. Les vues démo n’utilisent pas encore ce
-            profil pour calculer des recommandations.
+            capital et la stratégie enregistrés servent au classement des opportunités de flipping.
           </p>
         </aside>
       </div>

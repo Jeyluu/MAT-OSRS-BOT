@@ -4,6 +4,7 @@ import {
   itemMappingResponseSchema,
   latestPricesResponseSchema,
   osrsMarketSnapshotSchema,
+  timeseriesResponseSchema,
 } from './osrs-market-schema.mjs';
 
 test('valide les dernières transactions et accepte les cotations absentes', () => {
@@ -45,9 +46,28 @@ test('valide les métadonnées des items et les agrégats 5 minutes', () => {
   expect(aggregate.data['561']?.avgHighPrice).toBe(113.5);
 });
 
+test('valide l’historique OSRS Wiki avec ses volumes et son intervalle', () => {
+  const result = timeseriesResponseSchema.parse({
+    itemId: 561,
+    startTimestamp: 1_793_123_400,
+    endTimestamp: 1_793_125_200,
+    timestep: 300,
+    data: [
+      {
+        timestamp: 1_793_125_200,
+        avgHighPrice: 113.5,
+        avgLowPrice: 109,
+        highPriceVolume: 12,
+        lowPriceVolume: 9,
+      },
+    ],
+  });
+  expect(result.data).toHaveLength(1);
+});
+
 test('valide le format publié de l’instantané statique', () => {
   const result = osrsMarketSnapshotSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     source: 'OSRS Wiki Real-time Prices API',
     sourceUrl: 'https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices',
     generatedAt: '2026-10-27T18:00:00.000Z',
@@ -58,5 +78,5 @@ test('valide le format publié de l’instantané statique', () => {
     items: [],
   });
 
-  expect(result.schemaVersion).toBe(1);
+  expect(result.schemaVersion).toBe(2);
 });

@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -6,7 +7,11 @@ import {
   itemMappingResponseSchema,
   latestPricesResponseSchema,
   osrsMarketSnapshotSchema,
+  timeseriesResponseSchema,
 } from '../src/data/osrs-market-schema.mjs';
+
+const require = createRequire(import.meta.url);
+const { DEFAULT_GE_TAX_POLICY, selectMerchHistoryCandidates } = require('@osrs-helper/core');
 
 const apiBaseUrl = 'https://prices.runescape.wiki/api/v2/osrs';
 const sourceUrl = 'https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices';
@@ -54,27 +59,65 @@ async function refreshMarketSnapshot() {
   const latest = parseResponse(latestPricesResponseSchema, await requestJson('latest'), 'latest');
   const fiveMinute = parseResponse(fiveMinutePricesResponseSchema, await requestJson('5m'), '5m');
 
-  const items = mapping.map((item) => {
+  const marketItems = mapping.map((item) => {
     const key = String(item.id);
     const latestPrice = latest.data[key];
     const fiveMinutePrice = fiveMinute.data[key];
 
     return {
-      id: item.id,
-      name: item.name,
-      icon: item.icon,
-      members: item.members,
-      buyLimit: item.limit ?? null,
-      high: latestPrice?.high ?? null,
-      highTime: latestPrice?.highTime ?? null,
-      low: latestPrice?.low ?? null,
-      lowTime: latestPrice?.lowTime ?? null,
-      avgHighPrice: fiveMinutePrice?.avgHighPrice ?? null,
-      avgLowPrice: fiveMinutePrice?.avgLowPrice ?? null,
-      highPriceVolume: fiveMinutePrice?.highPriceVolume ?? null,
-      lowPriceVolume: fiveMinutePrice?.lowPriceVolume ?? null,
+      item: {
+        id: item.id,
+        name: item.name,
+        icon: item.icon,
+        members: item.members,
+        limit: item.limit ?? null,
+      },
+      latestPrice: latestPrice ?? null,
+      fiveMinutePrice: fiveMinutePrice ?? null,
     };
   });
+
+  const historyCandidates = selectMerchHistoryCandidates(marketItems, {
+    taxPolicy: DEFAULT_GE_TAX_POLICY,
+    maximumCandidates: 40,
+  });
+  const historyByItemId = new Map();
+
+  for (const [index, candidate] of historyCandidates.entries()) {
+    if (index > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
+    const response = parseResponse(
+      timeseriesResponseSchema,
+      await requestJson(`timeseries?id=${candidate.item.id}&lookback=6h`),
+      `timeseries?id=${candidate.item.id}`,
+    );
+    historyByItemId.set(
+      candidate.item.id,
+      response.data.map((point) => ({
+        timestamp: point.timestamp,
+        avgHighPrice: point.avgHighPrice ?? null,
+        avgLowPrice: point.avgLowPrice ?? null,
+        highPriceVolume: point.highPriceVolume ?? null,
+        lowPriceVolume: point.lowPriceVolume ?? null,
+      })),
+    );
+  }
+
+  const items = marketItems.map(({ item, latestPrice, fiveMinutePrice }) => ({
+    id: item.id,
+    name: item.name,
+    icon: item.icon,
+    members: item.members,
+    buyLimit: item.limit ?? null,
+    high: latestPrice?.high ?? null,
+    highTime: latestPrice?.highTime ?? null,
+    low: latestPrice?.low ?? null,
+    lowTime: latestPrice?.lowTime ?? null,
+    avgHighPrice: fiveMinutePrice?.avgHighPrice ?? null,
+    avgLowPrice: fiveMinutePrice?.avgLowPrice ?? null,
+    highPriceVolume: fiveMinutePrice?.highPriceVolume ?? null,
+    lowPriceVolume: fiveMinutePrice?.lowPriceVolume ?? null,
+    history: historyByItemId.get(item.id) ?? null,
+  }));
 
   const latestAsOf = items.reduce((latestTime, item) => {
     const itemTime = Math.max(item.highTime ?? 0, item.lowTime ?? 0);
@@ -84,7 +127,7 @@ async function refreshMarketSnapshot() {
   const snapshot = parseResponse(
     osrsMarketSnapshotSchema,
     {
-      schemaVersion: 1,
+      schemaVersion: 2,
       source: 'OSRS Wiki Real-time Prices API',
       sourceUrl,
       generatedAt: new Date().toISOString(),

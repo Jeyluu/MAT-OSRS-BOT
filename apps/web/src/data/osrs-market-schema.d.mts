@@ -22,6 +22,18 @@ export interface FiveMinutePrice {
   lowPriceVolume?: number | null;
 }
 
+export interface TimeseriesPoint extends FiveMinutePrice {
+  timestamp: number;
+}
+
+export interface SnapshotHistoryPoint {
+  timestamp: number;
+  avgHighPrice: number | null;
+  avgLowPrice: number | null;
+  highPriceVolume: number | null;
+  lowPriceVolume: number | null;
+}
+
 export interface OsrsMarketItem {
   id: number;
   name: string;
@@ -36,6 +48,7 @@ export interface OsrsMarketItem {
   avgLowPrice: number | null | undefined;
   highPriceVolume: number | null | undefined;
   lowPriceVolume: number | null | undefined;
+  history: SnapshotHistoryPoint[] | null;
 }
 
 export interface OsrsMarketSnapshot {
@@ -57,5 +70,12 @@ export declare const itemMappingResponseSchema: z.ZodType<ItemMapping[]>;
 export declare const fiveMinutePricesResponseSchema: z.ZodType<{
   timestamp: number;
   data: Record<string, FiveMinutePrice>;
+}>;
+export declare const timeseriesResponseSchema: z.ZodType<{
+  itemId: number;
+  startTimestamp: number;
+  endTimestamp: number;
+  timestep: number;
+  data: TimeseriesPoint[];
 }>;
 export declare const osrsMarketSnapshotSchema: z.ZodType<OsrsMarketSnapshot>;

@@ -1,4 +1,5 @@
 import type { GeTaxPolicy, MerchOpportunity, OsrsMarketItem } from './types';
+import { calculateGeTaxPerItem } from './tax-policy';
 
 const isPositiveSafeInteger = (value: number | null): value is number =>
   value !== null && Number.isSafeInteger(value) && value > 0;
@@ -21,12 +22,7 @@ export const calculateMerchOpportunity = (
 
   const buyPrice = latestPrice.low;
   const sellPrice = latestPrice.high;
-  const geTaxPerItem = taxPolicy.taxExemptItemIds.has(item.id)
-    ? 0
-    : Math.min(
-        Math.floor(sellPrice * taxPolicy.rate),
-        taxPolicy.maximumPerItem,
-      );
+  const geTaxPerItem = calculateGeTaxPerItem(item.id, sellPrice, taxPolicy);
   const netSellPrice = sellPrice - geTaxPerItem;
   const profitPerItem = netSellPrice - buyPrice;
 
