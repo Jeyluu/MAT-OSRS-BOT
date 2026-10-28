@@ -1,4 +1,4 @@
-import { ClipboardPaste, ExternalLink, ShieldCheck, Trophy } from 'lucide-react';
+import { ClipboardPaste, ExternalLink, FileText, ShieldCheck, Trophy } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,6 +18,12 @@ interface HiscoresPanelProps {
 function getHiscoresUrl(username: string) {
   const url = new URL('https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws');
   url.searchParams.set('player', username.trim());
+  return url.toString();
+}
+
+function getHiscoresProfileUrl(username: string) {
+  const url = new URL('https://secure.runescape.com/m=hiscore_oldschool/overall');
+  url.searchParams.set('user', username.trim());
   return url.toString();
 }
 
@@ -43,6 +49,12 @@ export function HiscoresPanel({ username, snapshot, onImport }: HiscoresPanelPro
 
     const parsed = parseOsrsHiscoresLite(rawData);
     if (!parsed.success) {
+      if (/^<!doctype html|^<html[\s>]/i.test(rawData.trimStart())) {
+        setError(
+          'Jagex a renvoyé une page HTML au lieu du CSV. Vérifie le pseudo sur la fiche officielle, puis réessaie l’export.',
+        );
+        return;
+      }
       setError(parsed.error);
       return;
     }
@@ -63,19 +75,30 @@ export function HiscoresPanel({ username, snapshot, onImport }: HiscoresPanelPro
         <Trophy aria-hidden="true" className="text-amber-200" size={16} /> Niveaux HiScores
       </div>
       <p className="mt-2 text-xs leading-5 text-muted-foreground">
-        L’API officielle ne permet pas la lecture directe depuis cette SPA. Ouvre sa réponse dans un
-        onglet, copie le texte CSV, puis colle-le ici. Aucune donnée ne passe par un proxy.
+        La SPA ne peut pas lire directement les HiScores. Vérifie d’abord le pseudo sur la fiche,
+        puis ouvre l’export CSV, copie son texte et colle-le ici. Aucune donnée ne passe par un
+        proxy.
       </p>
 
       {playerName ? (
-        <a
-          className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          href={getHiscoresUrl(playerName)}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <ExternalLink aria-hidden="true" size={14} /> Ouvrir la réponse HiScores officielle
-        </a>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            href={getHiscoresProfileUrl(playerName)}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <ExternalLink aria-hidden="true" size={14} /> Voir la fiche officielle
+          </a>
+          <a
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            href={getHiscoresUrl(playerName)}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <FileText aria-hidden="true" size={14} /> Ouvrir l’export CSV
+          </a>
+        </div>
       ) : (
         <p className="mt-4 rounded-lg border border-border bg-background/50 px-3 py-2 text-[11px] text-muted-foreground">
           Enregistre d’abord ton pseudo pour préparer le lien HiScores.
