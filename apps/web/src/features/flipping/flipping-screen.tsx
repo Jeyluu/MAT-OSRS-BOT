@@ -7,7 +7,6 @@ import {
   Clock3,
   Database,
   ExternalLink,
-  Gem,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -19,6 +18,7 @@ import { Card } from '@/components/ui/card';
 import type { OsrsMarketSnapshot } from '@/data/osrs-market-schema.mjs';
 import { loadProfilePreferences } from '@/features/profile/profile-storage';
 import { EmptyState, formatGp, PageHeading, StatCard } from '@/features/shared';
+import { OsrsItemIcon } from '@/features/osrs-item-icon';
 import { useOsrsMarketSnapshot } from './use-osrs-market';
 
 type MembershipFilter = 'Tous' | 'Gratuits' | 'Membres';
@@ -131,10 +131,12 @@ function SnapshotNotice({ snapshot }: { snapshot: OsrsMarketSnapshot }) {
 
 function OpportunityRow({
   ranked,
+  icon,
   selected,
   onSelect,
 }: {
   ranked: RankedMerchOpportunity;
+  icon: string | undefined;
   selected: boolean;
   onSelect: () => void;
 }) {
@@ -150,9 +152,11 @@ function OpportunityRow({
           onClick={onSelect}
           type="button"
         >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/[0.08] text-primary">
-            <Gem aria-hidden="true" size={16} />
-          </span>
+          <OsrsItemIcon
+            className="size-9 shrink-0 rounded-lg border border-primary/15 bg-primary/[0.08] text-primary"
+            icon={icon}
+            name={opportunity.item.name}
+          />
           <span>
             <span className="block text-xs font-semibold text-foreground">
               {opportunity.item.name}
@@ -251,9 +255,11 @@ function HistorySparkline({ history }: { history: RankedMerchOpportunity['histor
 function OpportunityDetail({
   ranked,
   strategy,
+  icon,
 }: {
   ranked: RankedMerchOpportunity;
   strategy: MerchStrategy;
+  icon: string | undefined;
 }) {
   const { opportunity } = ranked;
   const oldestQuote = Math.floor(opportunity.oldestQuoteTime / 1_000);
@@ -271,9 +277,11 @@ function OpportunityDetail({
             {opportunity.item.id}
           </p>
         </div>
-        <span className="flex size-11 items-center justify-center rounded-xl border border-primary/15 bg-primary/[0.08] text-primary">
-          <Gem aria-hidden="true" size={19} />
-        </span>
+        <OsrsItemIcon
+          className="size-11 shrink-0 rounded-xl border border-primary/15 bg-primary/[0.08] text-primary"
+          icon={icon}
+          name={opportunity.item.name}
+        />
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/45 p-3.5">
@@ -407,6 +415,10 @@ export function FlippingScreen() {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('Tous');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const profile = useMemo(() => loadProfilePreferences(), []);
+  const iconsById = useMemo(
+    () => new Map(snapshot?.items.map((item) => [item.id, item.icon] as const) ?? []),
+    [snapshot],
+  );
 
   const rankedItems = useMemo(() => {
     if (!snapshot || profile.capitalGp <= 0) return [];
@@ -593,6 +605,7 @@ export function FlippingScreen() {
                 <tbody className="divide-y divide-border/70">
                   {matchingItems.map((ranked) => (
                     <OpportunityRow
+                      icon={iconsById.get(ranked.opportunity.item.id)}
                       key={ranked.opportunity.item.id}
                       onSelect={() => setSelectedId(ranked.opportunity.item.id)}
                       ranked={ranked}
@@ -627,7 +640,11 @@ export function FlippingScreen() {
         </Card>
 
         {selectedItem ? (
-          <OpportunityDetail ranked={selectedItem} strategy={profile.strategy} />
+          <OpportunityDetail
+            icon={iconsById.get(selectedItem.opportunity.item.id)}
+            ranked={selectedItem}
+            strategy={profile.strategy}
+          />
         ) : (
           <Card className="border-border/80 bg-card/60 p-5">
             <EmptyState

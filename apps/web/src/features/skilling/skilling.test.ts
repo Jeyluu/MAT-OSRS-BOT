@@ -9,7 +9,7 @@ const nowSeconds = nowMs / 1_000;
 const sampleMethod: SkillingMethodDefinition = {
   id: 'test-method',
   name: 'Test method',
-  skill: 'Artisanat',
+  skill: 'Crafting',
   requiredLevel: 20,
   style: 'Actif',
   description: 'Fixture for skilling calculations.',
@@ -86,28 +86,28 @@ test('recommande uniquement les méthodes compatibles avec niveau, capital et st
   expect(
     recommendSkillingMethods([result], {
       capitalGp: 599,
-      levels: { Artisanat: 99 },
+      levels: { Crafting: 99 },
       style: 'Actif',
     }),
   ).toHaveLength(0);
   expect(
     recommendSkillingMethods([result], {
       capitalGp: 600,
-      levels: { Artisanat: 19 },
+      levels: { Crafting: 19 },
       style: 'Actif',
     }),
   ).toHaveLength(0);
   expect(
     recommendSkillingMethods([result], {
       capitalGp: 600,
-      levels: { Artisanat: 99 },
+      levels: { Crafting: 99 },
       style: 'AFK',
     }),
   ).toHaveLength(0);
   expect(
     recommendSkillingMethods([result], {
       capitalGp: 600,
-      levels: { Artisanat: 99 },
+      levels: { Crafting: 99 },
       style: 'Actif',
     }),
   ).toEqual([result]);

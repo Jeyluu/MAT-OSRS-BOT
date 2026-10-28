@@ -18,7 +18,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'teak-woodcutting',
     name: 'Couper des tecks (sans manipulation de ticks)',
-    skill: 'Coupe de bois',
+    skill: 'Woodcutting',
     requiredLevel: 35,
     style: 'AFK',
     description: 'Récolter et mettre en banque des bûches de teck avec une hache adaptée.',
@@ -44,7 +44,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'cook-monkfish',
     name: 'Cuire des monkfish',
-    skill: 'Cuisine',
+    skill: 'Cooking',
     requiredLevel: 68,
     style: 'AFK',
     description: 'Cuire des monkfish en banque avec le rendement moyen documenté pour ce palier.',
@@ -67,7 +67,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'cook-swordfish',
     name: 'Cuire des swordfish',
-    skill: 'Cuisine',
+    skill: 'Cooking',
     requiredLevel: 68,
     style: 'AFK',
     description: 'Cuire des swordfish et comparer le cours du produit au coût des poissons crus.',
@@ -90,7 +90,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'cook-shark',
     name: 'Cuire des sharks',
-    skill: 'Cuisine',
+    skill: 'Cooking',
     requiredLevel: 80,
     style: 'AFK',
     description: 'Cuire des sharks avec les gants de cuisine et un rendement corrigé des brûlures.',
@@ -117,7 +117,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'cook-anglerfish',
     name: 'Cuire des anglerfish',
-    skill: 'Cuisine',
+    skill: 'Cooking',
     requiredLevel: 84,
     style: 'AFK',
     description: 'Cuire des anglerfish avec les gants de cuisine et le rendement moyen du guide.',
@@ -144,7 +144,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'fletch-yew-longbow-unstrung',
     name: 'Empenner des yew longbow (u)',
-    skill: 'Empennage',
+    skill: 'Fletching',
     requiredLevel: 70,
     style: 'AFK',
     description: 'Tailler des bûches d’if en arcs longs non cordés.',
@@ -167,7 +167,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'fletch-magic-longbow-unstrung',
     name: 'Empenner des magic longbow (u)',
-    skill: 'Empennage',
+    skill: 'Fletching',
     requiredLevel: 85,
     style: 'AFK',
     description: 'Tailler des bûches magiques en arcs longs non cordés.',
@@ -190,7 +190,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'craft-drift-net',
     name: 'Tisser des drift nets',
-    skill: 'Artisanat',
+    skill: 'Crafting',
     requiredLevel: 29,
     style: 'Actif',
     description:
@@ -214,7 +214,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'clean-guam',
     name: 'Nettoyer des grimy guam leaves',
-    skill: 'Herboristerie',
+    skill: 'Herblore',
     requiredLevel: 3,
     style: 'Actif',
     description: 'Nettoyer manuellement des feuilles de guam pour les revendre.',
@@ -237,7 +237,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'smith-adamant-dart-tips',
     name: 'Forger des adamant dart tips',
-    skill: 'Forge',
+    skill: 'Smithing',
     requiredLevel: 74,
     style: 'Actif',
     description: 'Forger dix pointes de fléchette en adamantite à partir d’une barre.',
@@ -293,7 +293,7 @@ export const skillingMethods: readonly SkillingMethodDefinition[] = [
   {
     id: 'farm-ranarr-run',
     name: 'Faire pousser des ranarr weeds',
-    skill: 'Agriculture',
+    skill: 'Farming',
     requiredLevel: 32,
     style: 'Actif',
     description:

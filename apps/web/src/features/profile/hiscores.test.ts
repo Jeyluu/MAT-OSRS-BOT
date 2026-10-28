@@ -43,7 +43,7 @@ test('rejette les réponses tronquées et les niveaux hors limites', () => {
   const invalid = makeHiscoresCsv().split('\r\n');
   invalid[8] = '1,100,1000';
   const result = parseOsrsHiscoresLite(invalid.join('\n'));
-  expect(result).toMatchObject({ success: false, error: expect.stringContaining('Cuisine') });
+  expect(result).toMatchObject({ success: false, error: expect.stringContaining('Cooking') });
 });
 
 test('applique les niveaux classés au Skilling et préserve les niveaux non classés', () => {
@@ -53,13 +53,13 @@ test('applique les niveaux classés au Skilling et préserve les niveaux non cla
   if (!snapshot) throw new Error('Could not create a HiScores fixture.');
 
   const levels = hiscoresLevelsForSkilling(snapshot, {
-    Cuisine: 67,
-    'Coupe de bois': 1,
-    Artisanat: 42,
+    Cooking: 67,
+    Woodcutting: 1,
+    Crafting: 42,
   });
 
-  expect(levels.Cuisine).toBe(67);
-  expect(levels['Coupe de bois']).toBe(99);
-  expect(levels.Artisanat).toBe(99);
+  expect(levels.Cooking).toBe(67);
+  expect(levels.Woodcutting).toBe(99);
+  expect(levels.Crafting).toBe(99);
   expect(levels.Runecraft).toBe(99);
 });

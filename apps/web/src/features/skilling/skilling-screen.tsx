@@ -20,6 +20,7 @@ import type { OsrsMarketSnapshot } from '@/data/osrs-market-schema.mjs';
 import { useOsrsMarketSnapshot } from '@/features/flipping/use-osrs-market';
 import { loadProfilePreferences } from '@/features/profile/profile-storage';
 import { EmptyState, formatGp, formatGpCompact, PageHeading, StatCard } from '@/features/shared';
+import { OsrsItemIcon } from '@/features/osrs-item-icon';
 import { skillingMethods, skillingSkills } from './skilling-catalog';
 import { loadSkillingLevels, saveSkillingLevels } from './skilling-levels';
 
@@ -89,7 +90,15 @@ function MethodStat({
   );
 }
 
-function ResultCard({ result, index }: { result: SkillingMethodResult; index: number }) {
+function ResultCard({
+  result,
+  index,
+  iconsById,
+}: {
+  result: SkillingMethodResult;
+  index: number;
+  iconsById: ReadonlyMap<number, string>;
+}) {
   const { method, inputs, outputs } = result;
   return (
     <details className="group rounded-xl border border-border/80 bg-background/45 open:border-primary/25 open:bg-background/70">
@@ -141,11 +150,18 @@ function ResultCard({ result, index }: { result: SkillingMethodResult; index: nu
           {inputs.length ? (
             <ul className="mt-2 space-y-2 text-xs">
               {inputs.map((input) => (
-                <li className="flex items-start justify-between gap-3" key={input.itemId}>
-                  <span className="text-foreground">
-                    {input.name}{' '}
-                    <span className="text-muted-foreground">
-                      · {formatNumber(input.totalPerHour)} / h
+                <li className="flex items-center justify-between gap-3" key={input.itemId}>
+                  <span className="flex min-w-0 items-center gap-2 text-foreground">
+                    <OsrsItemIcon
+                      className="size-7 shrink-0 rounded-md border border-border/70 bg-card/70 text-muted-foreground"
+                      icon={iconsById.get(input.itemId)}
+                      name={input.name}
+                    />
+                    <span className="min-w-0">
+                      {input.name}{' '}
+                      <span className="text-muted-foreground">
+                        · {formatNumber(input.totalPerHour)} / h
+                      </span>
                     </span>
                   </span>
                   <span className="shrink-0 text-right tabular-nums text-muted-foreground">
@@ -169,11 +185,18 @@ function ResultCard({ result, index }: { result: SkillingMethodResult; index: nu
           </h3>
           <ul className="mt-2 space-y-2 text-xs">
             {outputs.map((output) => (
-              <li className="flex items-start justify-between gap-3" key={output.itemId}>
-                <span className="text-foreground">
-                  {output.name}{' '}
-                  <span className="text-muted-foreground">
-                    · {formatNumber(output.totalPerHour)} / h
+              <li className="flex items-center justify-between gap-3" key={output.itemId}>
+                <span className="flex min-w-0 items-center gap-2 text-foreground">
+                  <OsrsItemIcon
+                    className="size-7 shrink-0 rounded-md border border-border/70 bg-card/70 text-muted-foreground"
+                    icon={iconsById.get(output.itemId)}
+                    name={output.name}
+                  />
+                  <span className="min-w-0">
+                    {output.name}{' '}
+                    <span className="text-muted-foreground">
+                      · {formatNumber(output.totalPerHour)} / h
+                    </span>
                   </span>
                 </span>
                 <span className="shrink-0 text-right tabular-nums text-muted-foreground">
@@ -298,11 +321,16 @@ export function SkillingScreen() {
   } = useOsrsMarketSnapshot();
   const profile = useMemo(() => loadProfilePreferences(), []);
   const [levels, setLevels] = useState(() => loadSkillingLevels(skillingSkills));
-  const [levelSkill, setLevelSkill] = useState(skillingSkills[0] ?? 'Cuisine');
+  const [levelSkill, setLevelSkill] = useState(skillingSkills[0] ?? 'Cooking');
   const [skillFilter, setSkillFilter] = useState('Toutes');
   const [styleFilter, setStyleFilter] = useState<StyleFilter>(profile.skillingStyle);
   const [search, setSearch] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
+
+  const iconsById = useMemo(
+    () => new Map(snapshot?.items.map((item) => [item.id, item.icon] as const) ?? []),
+    [snapshot],
+  );
 
   const market = useMemo(() => {
     if (!snapshot) return new Map();
@@ -552,7 +580,12 @@ export function SkillingScreen() {
         <div className="grid gap-3 p-4 sm:p-5 lg:grid-cols-2">
           {recommendations.length ? (
             recommendations.map((result, index) => (
-              <ResultCard index={index} key={result.method.id} result={result} />
+              <ResultCard
+                iconsById={iconsById}
+                index={index}
+                key={result.method.id}
+                result={result}
+              />
             ))
           ) : (
             <div className="sm:col-span-2">
