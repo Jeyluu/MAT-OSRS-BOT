@@ -27,6 +27,16 @@ test('parse les lignes de compétences HiScores et ignore les données d’activ
   expect(result.scores.sailing).toEqual({ rank: 25, level: 99, experience: 240_000 });
 });
 
+test('parse les données copiées avec des espaces à la place des retours de ligne', () => {
+  const flattened = `${makeHiscoresCsv().replace(/\r?\n/g, ' ')} -1,0 -1,0`;
+  const result = parseOsrsHiscoresLite(flattened);
+
+  expect(result.success).toBe(true);
+  if (!result.success) return;
+  expect(result.scores.overall.level).toBe(2_278);
+  expect(result.scores.sailing.experience).toBe(240_000);
+});
+
 test('rejette les réponses tronquées et les niveaux hors limites', () => {
   expect(parseOsrsHiscoresLite('1,99,100').success).toBe(false);
 

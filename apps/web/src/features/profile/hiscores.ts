@@ -84,23 +84,23 @@ function normalizeScore(value: number): number | null {
 }
 
 export function parseOsrsHiscoresLite(text: string): ParseHiscoresResult {
-  const lines = text
+  const rows = text
     .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
+    .trim()
+    .split(/\s+/)
     .filter(Boolean);
 
-  if (lines.length < osrsHiscoresSkills.length) {
+  if (rows.length < osrsHiscoresSkills.length) {
     return {
       success: false,
-      error: `La réponse contient ${lines.length} lignes; ${osrsHiscoresSkills.length} lignes HiScores sont attendues (total compris).`,
+      error: `La réponse contient ${rows.length} enregistrements; ${osrsHiscoresSkills.length} enregistrements HiScores sont attendus (total compris).`,
     };
   }
 
   const entries: [OsrsHiscoresSkillId, OsrsHiscoresScore][] = [];
 
   for (const [index, skill] of osrsHiscoresSkills.entries()) {
-    const fields = lines[index]?.split(',');
+    const fields = rows[index]?.split(',');
     const row = z
       .tuple([integerTextSchema, integerTextSchema, integerTextSchema])
       .safeParse(fields);
