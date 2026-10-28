@@ -176,17 +176,37 @@ Depuis la racine du dépôt :
 
 ```powershell
 npm ci
-npm run dev:web
-npm run build:web
-npm run test:web
-npm run check:web
 ```
 
-Le workflow `.github/workflows/pages.yml` construit `apps/web/dist` et le publie sur GitHub Pages
-après un push sur `main` ou un lancement manuel. Dans les paramètres du dépôt, choisis **Settings →
-Pages → Build and deployment → Source: GitHub Actions**. Le chemin de base Vite est actuellement
-`/MAT-OSRS-BOT/` pour le site projet de ce dépôt ; adapte `apps/web/vite.config.ts` si le dépôt est
-renommé ou si un domaine personnalisé est configuré.
+Pour le développement local, démarre Vite dans un terminal :
+
+```powershell
+npm run dev:web
+```
+
+Cette commande rafraîchit d’abord les données. Pour contrôler le code et construire une version
+locale de production :
+
+```powershell
+npm run check:web
+npm run test:web
+npm run refresh:market -- --required
+npm run build:web
+```
+
+Le workflow rafraîchit l’instantané automatiquement et bloque la publication si la collecte échoue.
+
+Le workflow `.github/workflows/pages.yml` vérifie les pull requests vers `main`, puis construit
+`apps/web/dist` et le publie après un push sur `main`, une exécution manuelle depuis `main` ou le
+rafraîchissement planifié des prix. Les pull requests et les lancements depuis une autre branche
+exécutent les validations et le build sans publier le site.
+
+Pour le premier déploiement, le dépôt doit être public avec GitHub Free. Dans les paramètres du
+dépôt, choisis **Settings → Pages → Build and deployment → Source: GitHub Actions** et vérifie que
+GitHub Actions est activé. Lance ensuite **Actions → Deploy OSRS Helper to GitHub Pages → Run
+workflow** et sélectionne `main`, ou pousse sur cette branche. L’URL attendue pour ce dépôt est
+`https://jeyluu.github.io/MAT-OSRS-BOT/`. Le chemin de base Vite est `/MAT-OSRS-BOT/` ; adapte
+`apps/web/vite.config.ts` si le dépôt est renommé ou si un domaine personnalisé est configuré.
 
 ### Données de marché de la SPA
 
