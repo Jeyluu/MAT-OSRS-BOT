@@ -16,9 +16,9 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { OsrsMarketSnapshot } from '@/data/osrs-market-schema.mjs';
+import { OsrsItemIcon } from '@/features/osrs-item-icon';
 import { loadProfilePreferences } from '@/features/profile/profile-storage';
 import { EmptyState, formatGp, PageHeading, StatCard } from '@/features/shared';
-import { OsrsItemIcon } from '@/features/osrs-item-icon';
 import { useOsrsMarketSnapshot } from './use-osrs-market';
 
 type MembershipFilter = 'Tous' | 'Gratuits' | 'Membres';

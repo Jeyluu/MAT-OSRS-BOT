@@ -18,9 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { OsrsMarketSnapshot } from '@/data/osrs-market-schema.mjs';
 import { useOsrsMarketSnapshot } from '@/features/flipping/use-osrs-market';
+import { OsrsItemIcon } from '@/features/osrs-item-icon';
 import { loadProfilePreferences } from '@/features/profile/profile-storage';
 import { EmptyState, formatGp, formatGpCompact, PageHeading, StatCard } from '@/features/shared';
-import { OsrsItemIcon } from '@/features/osrs-item-icon';
 import { skillingMethods, skillingSkills } from './skilling-catalog';
 import { loadSkillingLevels, saveSkillingLevels } from './skilling-levels';
 
