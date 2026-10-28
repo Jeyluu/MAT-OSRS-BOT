@@ -196,4 +196,16 @@ Le script est lancé avant Vite lors du développement. Pour le rafraîchir manu
 
 Le workflow met à jour le site toutes les cinq minutes avec un User-Agent descriptif. GitHub peut retarder ou ignorer une exécution planifiée sous forte charge et désactive les plannings des dépôts publics sans activité pendant 60 jours ; relance le workflow manuellement depuis l’onglet **Actions** si nécessaire. Les réponses ont leur propre horodatage, affiché dans l’interface. Les prix correspondent aux transactions récentes et ne garantissent pas l’exécution d’un ordre.
 
-La source HiScores ne permet pas la lecture directe dans le navigateur ; la synchronisation automatique reste donc inactive dans cette version. Le catalogue de méthodes de skilling reste fictif jusqu’à l’intégration d’une source documentée.
+### Skilling
+
+Le catalogue documente des méthodes de Coupe de bois, Cuisine, Empennage, Artisanat, Herboristerie et Forge. Les taux et prérequis proviennent des guides de l’[OSRS Wiki](https://oldschool.runescape.wiki/) ; les calculs de coût utilisent les prix acheteur récents et les recettes vendent au prix vendeur récent, après taxe du Grand Exchange. La fraîcheur des cotations est vérifiée avant d’afficher une recommandation. Le résultat reste une estimation des transactions récentes, pas une garantie d’exécution ou de profit.
+
+Les méthodes d’Astral runes et de culture de ranarr sont listées à part, sans GP/h, car le coût horaire des déplacements et consommables ou le rendement de récolte ne sont pas assez déterminés par les données disponibles. Les niveaux de compétence sont éditables dans l’écran et enregistrés dans le stockage local du navigateur.
+
+Références de taux utilisées : [Coupe de bois](https://oldschool.runescape.wiki/w/Tree_cutting_guide), [Cuisine](https://oldschool.runescape.wiki/w/Pay-to-play_Cooking_training), [Empennage](https://oldschool.runescape.wiki/w/Fletching_training), [Artisanat](https://oldschool.runescape.wiki/w/Money_making_guide/Crafting_drift_nets), [Herboristerie](https://oldschool.runescape.wiki/w/Herblore_training), [Forge](https://oldschool.runescape.wiki/w/Pay-to-play_Smithing_training), [Runecraft](https://oldschool.runescape.wiki/w/Pay-to-play_Runecraft_training) et [Culture](https://oldschool.runescape.wiki/w/Farming).
+
+### Profil et HiScores
+
+Le profil conserve localement le pseudo, le capital, la stratégie de flipping et la préférence de skilling. La préférence d’affichage des grands montants active aussi le format compact dans les écrans Flipping, Skilling et Profil. Le pseudo et les préférences restent dans ce navigateur et ne demandent aucun compte.
+
+L’[endpoint officiel HiScores](https://secure.runescape.com/m=hiscore_oldschool/) ne renvoie pas d’en-tête `Access-Control-Allow-Origin` pour une lecture depuis la SPA. Pour éviter un proxy externe ou un backend, l’écran Profil ouvre la réponse CSV officielle dans un onglet ; l’utilisateur la copie puis l’importe. Le parseur valide les 25 lignes HiScores (total et 24 compétences), conserve l’instantané localement et transmet les niveaux publiés au calcul des recommandations. Une compétence non classée garde son niveau manuel précédent. Les mots de passe et jetons ne sont jamais demandés.

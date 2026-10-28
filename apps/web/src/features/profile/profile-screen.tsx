@@ -1,17 +1,14 @@
-import {
-  Check,
-  CircleHelp,
-  CloudOff,
-  Fingerprint,
-  HardDrive,
-  Save,
-  Shield,
-  UserRound,
-  Wallet,
-} from 'lucide-react';
+import { Check, CircleHelp, Fingerprint, HardDrive, Save, UserRound, Wallet } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { hiscoresLevelsForSkilling, type OsrsHiscoresSnapshot } from '@/features/profile/hiscores';
+import { HiscoresPanel } from '@/features/profile/hiscores-panel';
+import {
+  clearHiscoresSnapshot,
+  loadHiscoresSnapshot,
+  saveHiscoresSnapshot,
+} from '@/features/profile/hiscores-storage';
 import {
   clearProfilePreferences,
   defaultProfilePreferences,
@@ -21,7 +18,13 @@ import {
   profilePreferencesSchema,
   saveProfilePreferences,
 } from '@/features/profile/profile-storage';
-import { DemoNotice, formatGp, PageHeading } from '@/features/shared';
+import { formatGp, PageHeading } from '@/features/shared';
+import { skillingSkills } from '@/features/skilling/skilling-catalog';
+import {
+  clearSkillingLevels,
+  loadSkillingLevels,
+  saveSkillingLevels,
+} from '@/features/skilling/skilling-levels';
 
 const strategies = [
   { id: 'Prudente', label: 'Prudente', hint: 'Priorité à la stabilité' },
@@ -38,6 +41,7 @@ export function ProfileScreen() {
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
   const [hasSaved, setHasSaved] = useState(() => hasSavedProfilePreferences());
+  const [hiscoresSnapshot, setHiscoresSnapshot] = useState(() => loadHiscoresSnapshot());
 
   const updatePreference = <Key extends keyof ProfilePreferences>(
     key: Key,
@@ -73,9 +77,40 @@ export function ProfileScreen() {
   const handleReset = () => {
     setPreferences(defaultProfilePreferences);
     clearProfilePreferences();
+    clearHiscoresSnapshot();
+    clearSkillingLevels();
+    setHiscoresSnapshot(null);
     setHasSaved(false);
     setSaveError('');
-    setSaveMessage('Préférences locales effacées.');
+    setSaveMessage('Profil, import HiScores et niveaux locaux effacés.');
+  };
+
+  const handleHiscoresImport = (snapshot: OsrsHiscoresSnapshot) => {
+    const previousPreferences = loadProfilePreferences();
+    const previousSnapshot = loadHiscoresSnapshot();
+    const previousLevels = loadSkillingLevels(skillingSkills);
+    const nextPreferences = { ...preferences, username: snapshot.username };
+    const nextLevels = hiscoresLevelsForSkilling(snapshot, previousLevels);
+
+    const saved =
+      saveProfilePreferences(nextPreferences) &&
+      saveSkillingLevels(nextLevels) &&
+      saveHiscoresSnapshot(snapshot);
+
+    if (!saved) {
+      saveProfilePreferences(previousPreferences);
+      saveSkillingLevels(previousLevels);
+      if (previousSnapshot) saveHiscoresSnapshot(previousSnapshot);
+      else clearHiscoresSnapshot();
+      return false;
+    }
+
+    setPreferences(nextPreferences);
+    setHiscoresSnapshot(snapshot);
+    setHasSaved(true);
+    setSaveError('');
+    setSaveMessage('Pseudo et niveaux HiScores enregistrés sur cet appareil.');
+    return true;
   };
 
   return (
@@ -85,11 +120,6 @@ export function ProfileScreen() {
         eyebrow="PERSONNALISATION / PROFIL"
         title="Tes réglages, à ta façon."
       />
-
-      <DemoNotice>
-        Aucun compte n’est requis. Les niveaux ne sont pas synchronisés dans cette maquette : les
-        préférences saisies sont stockées localement dans ton navigateur.
-      </DemoNotice>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.7fr)]">
         <Card className="border-border/80 bg-card/60 p-5 sm:p-7">
@@ -121,7 +151,7 @@ export function ProfileScreen() {
                   value={preferences.username}
                 />
                 <span className="block text-[10px] text-muted-foreground">
-                  Jusqu’à 12 caractères. La connexion HiScores n’est pas active.
+                  Jusqu’à 12 caractères. L’import CSV HiScores est disponible ci-dessous.
                 </span>
               </label>
               <label className="block space-y-2" htmlFor="profile-capital">
@@ -225,7 +255,7 @@ export function ProfileScreen() {
               <div className="flex gap-2">
                 {hasSaved && (
                   <Button className="text-xs" onClick={handleReset} type="button" variant="ghost">
-                    Effacer
+                    Effacer le profil local
                   </Button>
                 )}
                 <Button className="gap-2" type="submit">
@@ -269,20 +299,11 @@ export function ProfileScreen() {
             </div>
           </Card>
 
-          <Card className="border-amber-300/15 bg-amber-300/[0.035] p-5 sm:p-6">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <CloudOff aria-hidden="true" className="text-amber-200" size={16} /> Niveaux HiScores
-            </div>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              La page HiScores ne permet pas une lecture directe depuis un navigateur. La
-              synchronisation automatique demandera une source compatible ; une saisie manuelle
-              reste prévue.
-            </p>
-            <div className="mt-4 flex items-start gap-2 rounded-lg bg-background/60 p-3 text-[10px] leading-4 text-muted-foreground">
-              <Shield aria-hidden="true" className="mt-0.5 shrink-0 text-amber-200" size={13} />{' '}
-              Aucun mot de passe ni jeton de compte ne sera demandé.
-            </div>
-          </Card>
+          <HiscoresPanel
+            onImport={handleHiscoresImport}
+            snapshot={hiscoresSnapshot}
+            username={preferences.username}
+          />
 
           <p className="flex items-start gap-2 px-1 text-[10px] leading-4 text-muted-foreground">
             <CircleHelp aria-hidden="true" className="mt-0.5 shrink-0 text-primary" size={13} /> Le

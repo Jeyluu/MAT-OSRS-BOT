@@ -12,6 +12,10 @@ export {
   rankMerchOpportunities,
   selectMerchHistoryCandidates,
 } from './market/rank-merch-opportunities';
+export {
+  calculateSkillingMethod,
+  recommendSkillingMethods,
+} from './skilling/calculate-skilling-method';
 export type {
   GeTaxPolicy,
   MerchRiskLevel,
@@ -26,3 +30,13 @@ export type {
   OsrsMarketItem,
   RankedMerchOpportunity,
 } from './market/types';
+export type {
+  SkillingMarketQuote,
+  SkillingMethodDefinition,
+  SkillingMethodResult,
+  SkillingPlayStyle,
+  SkillingPricedIngredient,
+  SkillingPricedOutput,
+  SkillingRateByLevel,
+  SkillingRecipeItem,
+} from './skilling/types';

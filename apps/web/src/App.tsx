@@ -91,7 +91,7 @@ export function App() {
           <span>
             OSRS Helper <span className="text-border">/</span> aperçu de l’interface
           </span>
-          <span>Prix GE sourcés OSRS Wiki · méthodes de skilling encore simulées.</span>
+          <span>Prix GE et calculs de skilling issus de sources OSRS Wiki.</span>
         </div>
       </footer>
     </div>

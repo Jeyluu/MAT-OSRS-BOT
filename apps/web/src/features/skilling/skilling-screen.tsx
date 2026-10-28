@@ -1,235 +1,508 @@
+import type { SkillingMethodResult, SkillingPlayStyle } from '@osrs-helper/core';
+import { calculateSkillingMethod, recommendSkillingMethods } from '@osrs-helper/core';
 import {
-  ChevronDown,
-  Clock3,
+  Activity,
+  AlertTriangle,
+  BookOpen,
   Coins,
-  Flame,
+  ExternalLink,
   Leaf,
-  Pickaxe,
+  RefreshCw,
   Search,
   Sparkles,
+  Wallet,
   Zap,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DemoNotice, EmptyState, formatGpCompact, PageHeading, StatCard } from '@/features/shared';
+import type { OsrsMarketSnapshot } from '@/data/osrs-market-schema.mjs';
+import { useOsrsMarketSnapshot } from '@/features/flipping/use-osrs-market';
+import { loadProfilePreferences } from '@/features/profile/profile-storage';
+import { EmptyState, formatGp, formatGpCompact, PageHeading, StatCard } from '@/features/shared';
+import { skillingMethods, skillingSkills } from './skilling-catalog';
+import { loadSkillingLevels, saveSkillingLevels } from './skilling-levels';
 
-type PlayStyle = 'AFK' | 'Actif';
-type StyleFilter = 'Toutes' | PlayStyle;
-
-interface SkillMethod {
-  readonly id: string;
-  readonly name: string;
-  readonly skill: string;
-  readonly level: number;
-  readonly style: PlayStyle;
-  readonly gpPerHour: number;
-  readonly xpPerHour: number;
-  readonly startingCapital: number;
-  readonly description: string;
-  readonly materials: readonly string[];
-  readonly steps: readonly string[];
-  readonly assumptions: string;
-}
-
-const demoMethods: readonly SkillMethod[] = [
-  {
-    id: 'magic-logs',
-    name: 'Couper des ifs',
-    skill: 'Coupe de bois',
-    level: 60,
-    style: 'AFK',
-    gpPerHour: 128_000,
-    xpPerHour: 55_000,
-    startingCapital: 5_000,
-    description: 'Récolter des bûches d’if dans une zone boisée proche d’une banque.',
-    materials: ['Hache adaptée au niveau', 'Quelques emplacements libres'],
-    steps: [
-      'Équiper la meilleure hache disponible.',
-      'Couper les ifs et déposer les bûches à la banque.',
-      'Vendre les ressources dans le Grand Exchange.',
-    ],
-    assumptions: 'Cadence, prix de vente et déplacement sont inventés pour la maquette.',
-  },
-  {
-    id: 'anglerfish',
-    name: 'Cuire des poissons-lunes',
-    skill: 'Cuisine',
-    level: 84,
-    style: 'AFK',
-    gpPerHour: 92_000,
-    xpPerHour: 260_000,
-    startingCapital: 1_400_000,
-    description: 'Cuire des poissons en lots pour une session régulière avec peu de clics.',
-    materials: ['Poissons crus', 'Accès à une cuisinière'],
-    steps: [
-      'Acheter les ingrédients au prix de l’exemple.',
-      'Cuire les poissons par lots.',
-      'Vendre le résultat et comptabiliser les pertes brûlées.',
-    ],
-    assumptions:
-      'Taux de brûlure, expérience et marges sont fictifs et ne constituent pas un guide de jeu.',
-  },
-  {
-    id: 'magic-longbow',
-    name: 'Empennes des arcs longs en if',
-    skill: 'Empennage',
-    level: 70,
-    style: 'AFK',
-    gpPerHour: 245_000,
-    xpPerHour: 150_000,
-    startingCapital: 820_000,
-    description: 'Transformer des ressources en arcs longs et revendre les objets fabriqués.',
-    materials: ['Bûches d’if', 'Corde d’arc', 'Couteau'],
-    steps: [
-      'Acheter les bûches et les cordes.',
-      'Tailler les arcs avec le couteau.',
-      'Ajouter les cordes puis vendre les arcs.',
-    ],
-    assumptions:
-      'Le rendement par heure et les prix des intrants sont des valeurs de démonstration.',
-  },
-  {
-    id: 'battlestaves',
-    name: 'Assembler des bâtons de combat',
-    skill: 'Artisanat',
-    level: 54,
-    style: 'Actif',
-    gpPerHour: 185_000,
-    xpPerHour: 102_000,
-    startingCapital: 3_200_000,
-    description: 'Assembler des orbes et des bâtons pour obtenir un produit transformé.',
-    materials: ['Bâtons de combat', 'Orbes chargés', 'Accès à un atelier'],
-    steps: [
-      'Acheter les bâtons et les orbes.',
-      'Assembler les composants dans l’inventaire.',
-      'Vérifier la valeur du lot avant la revente.',
-    ],
-    assumptions: 'Prix, coûts et rythme d’assemblage sont fictifs pour le prototype.',
-  },
-  {
-    id: 'super-combat',
-    name: 'Préparer des potions de combat',
-    skill: 'Herboristerie',
-    level: 90,
-    style: 'Actif',
-    gpPerHour: 415_000,
-    xpPerHour: 148_000,
-    startingCapital: 1_750_000,
-    description: 'Fabriquer une potion avancée à partir de ses ingrédients de base.',
-    materials: ['Herbe nettoyée', 'Fiole d’eau', 'Composant secondaire'],
-    steps: [
-      'Comparer les coûts des ingrédients.',
-      'Mélanger les ingrédients par lots.',
-      'Revendre les potions terminées.',
-    ],
-    assumptions: 'Recette, cadence et valeur de vente servent uniquement d’exemple visuel.',
-  },
-];
-
+type StyleFilter = 'Toutes' | SkillingPlayStyle;
 const styleFilters: readonly StyleFilter[] = ['Toutes', 'AFK', 'Actif'];
 
+function formatNumber(value: number, maximumFractionDigits = 0) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits }).format(value);
+}
+
+function formatSnapshotTime(snapshot: OsrsMarketSnapshot) {
+  if (!snapshot.generatedAt) return 'En attente du premier snapshot';
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(Date.parse(snapshot.generatedAt));
+}
+
+function MarketStatus({ snapshot }: { snapshot: OsrsMarketSnapshot }) {
+  const fresh = snapshot.generatedAt
+    ? Date.now() - Date.parse(snapshot.generatedAt) <= 20 * 60_000
+    : false;
+  return (
+    <div className="mb-5 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Activity aria-hidden="true" size={16} />
+        </span>
+        <div>
+          <p className="text-xs font-semibold text-foreground">
+            Calculs avec les prix réels du Grand Exchange
+          </p>
+          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+            Achat des ingrédients au dernier prix high, revente des produits au dernier prix low,
+            taxe GE déduite.
+          </p>
+        </div>
+      </div>
+      <span className="flex shrink-0 items-center gap-2 pl-11 text-[10px] text-muted-foreground sm:pl-0">
+        <span className={`size-1.5 rounded-full ${fresh ? 'bg-emerald-400' : 'bg-amber-300'}`} />
+        Prix rafraîchis · {formatSnapshotTime(snapshot)}
+      </span>
+    </div>
+  );
+}
+
+function MethodStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'profit' | undefined;
+}) {
+  return (
+    <div className="rounded-lg bg-card/80 p-2.5">
+      <span className="block text-[9px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={`mt-1 block text-xs font-semibold tabular-nums ${tone === 'profit' ? 'text-emerald-300' : 'text-foreground'}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ResultCard({ result, index }: { result: SkillingMethodResult; index: number }) {
+  const { method, inputs, outputs } = result;
+  return (
+    <details className="group rounded-xl border border-border/80 bg-background/45 open:border-primary/25 open:bg-background/70">
+      <summary className="list-none cursor-pointer p-4 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${index === 0 ? 'border-primary/20 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'}`}
+            >
+              {method.style === 'AFK' ? (
+                <Leaf aria-hidden="true" size={17} />
+              ) : (
+                <Zap aria-hidden="true" size={17} />
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">{method.name}</span>
+              <span className="mt-1 block text-[11px] text-muted-foreground">
+                {method.skill} · niveau {method.requiredLevel}+ · {method.style}
+              </span>
+            </span>
+          </div>
+          <span className="text-right text-[10px] text-muted-foreground">Détails</span>
+        </div>
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">{method.description}</p>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <MethodStat
+            label="GP net / h"
+            tone={result.gpPerHour !== null && result.gpPerHour >= 0 ? 'profit' : undefined}
+            value={`${result.gpPerHour !== null && result.gpPerHour > 0 ? '+' : ''}${formatGpCompact(result.gpPerHour ?? 0)} GP`}
+          />
+          <MethodStat label="XP / h" value={`${formatGpCompact(result.xpPerHour ?? 0)} XP`} />
+          <MethodStat
+            label="Capital · 1 lot"
+            value={`${formatGpCompact(result.capitalRequired ?? 0)} GP`}
+          />
+          <MethodStat
+            label="Cadence source"
+            value={`${formatNumber(result.actionsPerHour)} actions/h`}
+          />
+        </div>
+      </summary>
+
+      <div className="grid gap-5 border-t border-border/70 px-4 pb-4 pt-4 sm:grid-cols-2 sm:px-5 sm:pb-5">
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Ressources · achat au prix high
+          </h3>
+          {inputs.length ? (
+            <ul className="mt-2 space-y-2 text-xs">
+              {inputs.map((input) => (
+                <li className="flex items-start justify-between gap-3" key={input.itemId}>
+                  <span className="text-foreground">
+                    {input.name}{' '}
+                    <span className="text-muted-foreground">
+                      · {formatNumber(input.totalPerHour)} / h
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right tabular-nums text-muted-foreground">
+                    {formatGp(input.unitPrice)} GP / unité
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Aucun consommable tarifé; l’équipement n’est pas compté.
+            </p>
+          )}
+          <p className="mt-3 text-[10px] text-muted-foreground">
+            Coût estimé : {formatGp(result.inputCostPerHour ?? 0)} GP/h
+          </p>
+        </div>
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Produits · vente au prix low
+          </h3>
+          <ul className="mt-2 space-y-2 text-xs">
+            {outputs.map((output) => (
+              <li className="flex items-start justify-between gap-3" key={output.itemId}>
+                <span className="text-foreground">
+                  {output.name}{' '}
+                  <span className="text-muted-foreground">
+                    · {formatNumber(output.totalPerHour)} / h
+                  </span>
+                </span>
+                <span className="shrink-0 text-right tabular-nums text-muted-foreground">
+                  {formatGp(output.netUnitPrice)} GP net / unité
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[10px] text-muted-foreground">
+            Revente nette estimée : {formatGp(result.outputRevenuePerHour ?? 0)} GP/h
+          </p>
+        </div>
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Prérequis
+          </h3>
+          <ul className="mt-2 space-y-1.5 text-xs text-foreground">
+            {method.requirements.map((requirement) => (
+              <li key={requirement}>· {requirement}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Étapes
+          </h3>
+          <ol className="mt-2 space-y-1.5 text-xs leading-5 text-foreground">
+            {method.steps.map((step, stepIndex) => (
+              <li key={step}>
+                <span className="mr-2 text-primary">{stepIndex + 1}.</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="sm:col-span-2 rounded-lg border border-border/70 bg-card/50 px-3 py-2.5">
+          <p className="text-[10px] leading-4 text-muted-foreground">
+            Hypothèses : {method.assumptions.join(' ')}
+          </p>
+          <a
+            className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-primary hover:underline"
+            href={method.sourceUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Source de la cadence : {method.sourceLabel}{' '}
+            <ExternalLink aria-hidden="true" size={11} />
+          </a>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function IncompleteCard({ result }: { result: SkillingMethodResult }) {
+  const { method } = result;
+  return (
+    <details className="rounded-xl border border-amber-300/15 bg-amber-300/[0.025] p-4">
+      <summary className="cursor-pointer list-none text-xs font-semibold text-foreground">
+        <span className="inline-flex items-center gap-2">
+          <AlertTriangle aria-hidden="true" className="text-amber-200" size={14} />
+          {method.name}
+        </span>
+        <span className="mt-1 block pl-6 text-[10px] font-normal text-muted-foreground">
+          {method.skill} · niveau {method.requiredLevel}+ · GP/h non calculé
+        </span>
+      </summary>
+      <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-[10px] leading-4 text-muted-foreground">
+        <p>{result.reasons.join(' ')}</p>
+        {result.xpPerHour !== null && (
+          <p>Référence XP/h documentée : {formatGpCompact(result.xpPerHour)} XP.</p>
+        )}
+        {method.referenceYieldPerPatch !== undefined && method.growthCycleMinutes !== undefined && (
+          <p>
+            Référence distincte : {method.referenceYieldPerPatch} produits par patch au niveau et
+            avec l’équipement de la source; cycle de {method.growthCycleMinutes} minutes. Ce n’est
+            pas un GP/h.
+          </p>
+        )}
+        <ul className="space-y-1 text-foreground">
+          {method.requirements.map((requirement) => (
+            <li key={requirement}>· {requirement}</li>
+          ))}
+        </ul>
+        <a
+          className="inline-flex items-center gap-1.5 text-primary hover:underline"
+          href={method.sourceUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Source : {method.sourceLabel} <ExternalLink aria-hidden="true" size={11} />
+        </a>
+      </div>
+    </details>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div aria-label="Chargement des prix de marché" className="space-y-4" role="status">
+      <div className="h-16 animate-pulse rounded-xl border border-border/70 bg-card/60" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((item) => (
+          <div
+            className="h-24 animate-pulse rounded-xl border border-border/70 bg-card/60"
+            key={item}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SkillingScreen() {
-  const [styleFilter, setStyleFilter] = useState<StyleFilter>('Toutes');
+  const {
+    data: snapshot,
+    error,
+    isError,
+    isFetching,
+    isPending,
+    refetch,
+  } = useOsrsMarketSnapshot();
+  const profile = useMemo(() => loadProfilePreferences(), []);
+  const [levels, setLevels] = useState(() => loadSkillingLevels(skillingSkills));
+  const [levelSkill, setLevelSkill] = useState(skillingSkills[0] ?? 'Cuisine');
+  const [skillFilter, setSkillFilter] = useState('Toutes');
+  const [styleFilter, setStyleFilter] = useState<StyleFilter>(profile.skillingStyle);
   const [search, setSearch] = useState('');
-  const [capital, setCapital] = useState(2_500_000);
-  const [level, setLevel] = useState(99);
-  const [sortByProfit, setSortByProfit] = useState(true);
+  const [saveMessage, setSaveMessage] = useState('');
 
-  const methods = useMemo(() => {
-    const result = demoMethods.filter((method) => {
-      const matchesSearch = `${method.name} ${method.skill}`
-        .toLocaleLowerCase('fr')
-        .includes(search.toLocaleLowerCase('fr'));
-      const matchesStyle = styleFilter === 'Toutes' || method.style === styleFilter;
-      const matchesLevel = method.level <= level;
-      const matchesCapital = method.startingCapital <= capital;
-      return matchesSearch && matchesStyle && matchesLevel && matchesCapital;
-    });
-
-    return [...result].sort((first, second) =>
-      sortByProfit ? second.gpPerHour - first.gpPerHour : second.xpPerHour - first.xpPerHour,
+  const market = useMemo(() => {
+    if (!snapshot) return new Map();
+    return new Map(
+      snapshot.items.map((item) => [
+        item.id,
+        {
+          id: item.id,
+          name: item.name,
+          high: item.high ?? null,
+          highTime: item.highTime ?? null,
+          low: item.low ?? null,
+          lowTime: item.lowTime ?? null,
+        },
+      ]),
     );
-  }, [capital, level, search, sortByProfit, styleFilter]);
-  const topProfit = methods[0]?.gpPerHour ?? 0;
-  const topExperience = methods.reduce((highest, method) => Math.max(highest, method.xpPerHour), 0);
+  }, [snapshot]);
+
+  const calculatedMethods = useMemo(
+    () =>
+      skillingMethods.map((method) =>
+        calculateSkillingMethod(method, market, {
+          skillLevel: levels[method.skill] ?? 1,
+        }),
+      ),
+    [levels, market],
+  );
+
+  const recommendations = useMemo(
+    () =>
+      recommendSkillingMethods(calculatedMethods, {
+        capitalGp: profile.capitalGp,
+        levels,
+        style: styleFilter,
+        skill: skillFilter,
+      }).filter((result) => {
+        const query = search.trim().toLocaleLowerCase('fr');
+        return `${result.method.name} ${result.method.skill}`
+          .toLocaleLowerCase('fr')
+          .includes(query);
+      }),
+    [calculatedMethods, levels, profile.capitalGp, search, skillFilter, styleFilter],
+  );
+
+  const incompleteMethods = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('fr');
+    return calculatedMethods.filter(
+      (result) =>
+        result.status === 'incomplete' &&
+        result.method.requiredLevel <= (levels[result.method.skill] ?? 1) &&
+        (skillFilter === 'Toutes' || result.method.skill === skillFilter) &&
+        (styleFilter === 'Toutes' || result.method.style === styleFilter) &&
+        `${result.method.name} ${result.method.skill}`.toLocaleLowerCase('fr').includes(query),
+    );
+  }, [calculatedMethods, levels, search, skillFilter, styleFilter]);
+
+  const bestProfit = recommendations[0]?.gpPerHour ?? null;
+  const bestXp = recommendations.reduce(
+    (highest, result) => Math.max(highest, result.xpPerHour ?? 0),
+    0,
+  );
+
+  const handleLevelChange = (value: string) => {
+    const parsed = Number(value);
+    const level = Math.min(
+      99,
+      Math.max(1, Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1),
+    );
+    const next = { ...levels, [levelSkill]: level };
+    setLevels(next);
+    setSaveMessage(
+      saveSkillingLevels(next)
+        ? 'Niveau sauvegardé localement.'
+        : 'Impossible d’enregistrer ce niveau dans le navigateur.',
+    );
+  };
+
+  if (isPending) return <LoadingState />;
+  if (isError) {
+    return (
+      <Card className="border-rose-400/20 bg-rose-400/[0.035] p-6">
+        <div className="mx-auto flex max-w-lg flex-col items-center text-center">
+          <AlertTriangle aria-hidden="true" className="text-rose-300" size={22} />
+          <h2 className="mt-3 text-base font-semibold text-foreground">
+            Les prix ne sont pas disponibles
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : 'Une erreur réseau est survenue.'}
+          </p>
+          <Button
+            className="mt-4 gap-2"
+            onClick={() => void refetch()}
+            type="button"
+            variant="secondary"
+          >
+            <RefreshCw aria-hidden="true" size={14} /> Réessayer
+          </Button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <>
       <PageHeading
-        description="Compare des activités de récolte et de transformation selon ton niveau, ton budget et ton rythme de jeu."
+        action={
+          <Button
+            className="w-fit gap-2"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            type="button"
+            variant="secondary"
+          >
+            <RefreshCw aria-hidden="true" className={isFetching ? 'animate-spin' : ''} size={14} />
+            {isFetching ? 'Actualisation…' : 'Actualiser'}
+          </Button>
+        }
+        description="Compare les méthodes de récolte et de production avec des cadences sourcées, tes niveaux et ton capital."
         eyebrow="PROGRESSION / SKILLING"
-        title="Choisis une méthode à ton rythme."
+        title="Des méthodes, des prix réels."
       />
 
-      <DemoNotice>
-        Toutes les méthodes, prérequis, valeurs GP/h et XP/h sont fictifs. Elles montrent le futur
-        format du catalogue et ne doivent pas guider une session réelle.
-      </DemoNotice>
+      <MarketStatus snapshot={snapshot} />
 
-      <section
-        aria-label="Filtres des méthodes"
-        className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <div className="rounded-xl border border-border/80 bg-card/70 p-4">
-          <label
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground"
-            htmlFor="skill-level"
-          >
-            <Sparkles aria-hidden="true" className="text-primary" size={15} /> Niveau simulé
-          </label>
-          <div className="mt-3 flex items-baseline gap-2">
-            <input
-              className="w-24 border-0 border-b border-border bg-transparent pb-1 text-xl font-semibold tabular-nums outline-none focus:border-primary"
-              id="skill-level"
-              max="99"
-              min="1"
-              onChange={(event) => setLevel(Number(event.target.value))}
-              type="number"
-              value={level}
-            />
-            <span className="text-xs text-muted-foreground">/ 99 · manuel</span>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border/80 bg-card/70 p-4">
-          <label
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground"
-            htmlFor="skill-capital"
-          >
-            <Coins aria-hidden="true" className="text-primary" size={15} /> Capital simulé
-          </label>
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              className="min-w-0 flex-1 border-0 border-b border-border bg-transparent pb-1 text-xl font-semibold tabular-nums outline-none focus:border-primary"
-              id="skill-capital"
-              min="0"
-              onChange={(event) => setCapital(Number(event.target.value) || 0)}
-              step="100000"
-              type="number"
-              value={capital}
-            />
-            <span className="text-xs font-semibold text-primary">GP</span>
-          </div>
-        </div>
+      <section aria-label="Résumé de progression" className="mb-5 grid gap-3 sm:grid-cols-3">
         <StatCard
-          detail="dans les exemples visibles"
-          label="Meilleur GP/h affiché"
-          value={topProfit ? `${formatGpCompact(topProfit)} GP` : '—'}
-          trend="up"
+          detail="renseigné dans Profil"
+          label="Capital disponible"
+          value={`${formatGp(profile.capitalGp)} GP`}
         />
         <StatCard
-          detail="dans les exemples visibles"
-          label="Meilleur XP/h affiché"
-          value={topExperience ? `${formatGpCompact(topExperience)} XP` : '—'}
+          detail="taxe GE déduite des ventes"
+          label="Meilleur GP net / h"
+          value={
+            bestProfit === null
+              ? '—'
+              : `${bestProfit > 0 ? '+' : ''}${formatGpCompact(bestProfit)} GP`
+          }
+          {...(bestProfit !== null && bestProfit > 0 ? { trend: 'up' as const } : {})}
+        />
+        <StatCard
+          detail="selon les niveaux et filtres actuels"
+          label="Meilleur XP / h"
+          value={bestXp ? `${formatGpCompact(bestXp)} XP` : '—'}
         />
       </section>
+
+      <Card className="mb-5 border-border/80 bg-card/60 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:max-w-2xl">
+            <label className="block space-y-2" htmlFor="skill-level-skill">
+              <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                <Sparkles aria-hidden="true" className="text-primary" size={14} /> Niveau à modifier
+              </span>
+              <select
+                id="skill-level-skill"
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+                onChange={(event) => setLevelSkill(event.target.value)}
+                value={levelSkill}
+              >
+                {skillingSkills.map((skill) => (
+                  <option key={skill} value={skill}>
+                    {skill}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-2" htmlFor="skill-current-level">
+              <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                <Activity aria-hidden="true" className="text-primary" size={14} /> Niveau actuel ·
+                saisie locale
+              </span>
+              <span className="flex h-10 items-center rounded-lg border border-border bg-background pr-3 focus-within:border-primary">
+                <input
+                  className="h-full min-w-0 flex-1 rounded-lg border-0 bg-transparent px-3 text-sm tabular-nums outline-none"
+                  id="skill-current-level"
+                  max="99"
+                  min="1"
+                  onChange={(event) => handleLevelChange(event.target.value)}
+                  type="number"
+                  value={levels[levelSkill] ?? 1}
+                />
+                <span className="text-xs text-muted-foreground">/ 99</span>
+              </span>
+            </label>
+          </div>
+          <div aria-live="polite" className="min-h-4 text-[10px] text-muted-foreground">
+            {saveMessage ||
+              'Niveaux importés depuis le profil ou ajustés ici; conservés dans ce navigateur.'}
+          </div>
+        </div>
+      </Card>
 
       <Card className="overflow-hidden border-border/80 bg-card/60">
         <div className="flex flex-col gap-4 border-b border-border/80 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Méthodes disponibles</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              {methods.length} résultat{methods.length > 1 ? 's' : ''} · triées par{' '}
-              {sortByProfit ? 'rentabilité' : 'expérience'}
+              {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}{' '}
+              complète{recommendations.length > 1 ? 's' : ''} · tri GP/h décroissant
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -241,7 +514,7 @@ export function SkillingScreen() {
               />
               <input
                 aria-label="Rechercher une méthode ou un skill"
-                className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-xs outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Méthode ou compétence"
                 type="search"
@@ -249,162 +522,77 @@ export function SkillingScreen() {
               />
             </label>
             <select
-              aria-label="Trier les méthodes"
-              className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary"
-              onChange={(event) => setSortByProfit(event.target.value === 'gp')}
-              value={sortByProfit ? 'gp' : 'xp'}
+              aria-label="Filtrer par compétence"
+              className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+              onChange={(event) => setSkillFilter(event.target.value)}
+              value={skillFilter}
             >
-              <option value="gp">Trier par GP/h</option>
-              <option value="xp">Trier par XP/h</option>
+              <option value="Toutes">Toutes compétences</option>
+              {skillingSkills.map((skill) => (
+                <option key={skill} value={skill}>
+                  {skill}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Filtrer par rythme"
+              className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"
+              onChange={(event) => setStyleFilter(event.target.value as StyleFilter)}
+              value={styleFilter}
+            >
+              {styleFilters.map((style) => (
+                <option key={style} value={style}>
+                  {style === 'Toutes' ? `Profil · ${profile.skillingStyle}` : style}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-b border-border/70 bg-background/25 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <fieldset className="flex w-fit gap-1 rounded-lg bg-background/70 p-1">
-            <legend className="sr-only">Filtrer par rythme</legend>
-            {styleFilters.map((filter) => (
-              <button
-                aria-pressed={styleFilter === filter}
-                className={`rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${styleFilter === filter ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                key={filter}
-                onClick={() => setStyleFilter(filter)}
-                type="button"
-              >
-                {filter}
-              </button>
-            ))}
-          </fieldset>
-          <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <Pickaxe aria-hidden="true" size={12} /> Récolte & production{' '}
-            <span className="px-1 text-border">·</span> hors PvM
-          </p>
-        </div>
-
         <div className="grid gap-3 p-4 sm:p-5 lg:grid-cols-2">
-          {methods.length ? (
-            methods.map((method, index) => (
-              <details
-                className="group rounded-xl border border-border/80 bg-background/45 open:border-primary/25 open:bg-background/70"
-                key={method.id}
-              >
-                <summary className="list-none cursor-pointer p-4 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span
-                        className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${index === 0 ? 'border-primary/20 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'}`}
-                      >
-                        {method.style === 'AFK' ? (
-                          <Leaf aria-hidden="true" size={17} />
-                        ) : (
-                          <Zap aria-hidden="true" size={17} />
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-foreground">
-                          {method.name}
-                        </span>
-                        <span className="mt-1 block text-[11px] text-muted-foreground">
-                          {method.skill} <span className="px-1 text-border">·</span> niveau{' '}
-                          {method.level}+
-                        </span>
-                      </span>
-                    </div>
-                    <ChevronDown
-                      aria-hidden="true"
-                      className="mt-1 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
-                      size={16}
-                    />
-                  </div>
-                  <p className="mt-4 text-xs leading-5 text-muted-foreground">
-                    {method.description}
-                  </p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div className="rounded-lg bg-card/80 p-2.5">
-                      <span className="block text-[9px] uppercase tracking-wide text-muted-foreground">
-                        Profit / h
-                      </span>
-                      <span className="mt-1 block text-xs font-semibold text-emerald-300">
-                        {formatGpCompact(method.gpPerHour)} GP
-                      </span>
-                    </div>
-                    <div className="rounded-lg bg-card/80 p-2.5">
-                      <span className="block text-[9px] uppercase tracking-wide text-muted-foreground">
-                        XP / h
-                      </span>
-                      <span className="mt-1 block text-xs font-semibold text-foreground">
-                        {formatGpCompact(method.xpPerHour)} XP
-                      </span>
-                    </div>
-                    <div className="rounded-lg bg-card/80 p-2.5">
-                      <span className="block text-[9px] uppercase tracking-wide text-muted-foreground">
-                        Capital départ
-                      </span>
-                      <span className="mt-1 block text-xs font-semibold text-foreground">
-                        {formatGpCompact(method.startingCapital)} GP
-                      </span>
-                    </div>
-                    <div className="rounded-lg bg-card/80 p-2.5">
-                      <span className="block text-[9px] uppercase tracking-wide text-muted-foreground">
-                        Rythme
-                      </span>
-                      <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-foreground">
-                        {method.style === 'AFK' ? (
-                          <Clock3 aria-hidden="true" size={12} />
-                        ) : (
-                          <Flame aria-hidden="true" size={12} />
-                        )}
-                        {method.style}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="sr-only">Ouvrir les détails de {method.name}</span>
-                </summary>
-                <div className="grid gap-4 border-t border-border/70 px-4 pb-4 pt-4 sm:grid-cols-2 sm:px-5 sm:pb-5">
-                  <div>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Matériel nécessaire
-                    </h3>
-                    <ul className="mt-2 space-y-1.5 text-xs text-foreground">
-                      {method.materials.map((material) => (
-                        <li className="flex gap-2" key={material}>
-                          <span className="text-primary">·</span>
-                          {material}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Étapes
-                    </h3>
-                    <ol className="mt-2 space-y-1.5 text-xs leading-5 text-foreground">
-                      {method.steps.map((step, stepIndex) => (
-                        <li key={step}>
-                          <span className="mr-2 text-primary">{stepIndex + 1}.</span>
-                          {step}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                  <p className="sm:col-span-2 rounded-lg border border-amber-300/10 bg-amber-300/[0.04] px-3 py-2.5 text-[10px] leading-4 text-muted-foreground">
-                    {method.assumptions}
-                  </p>
-                </div>
-              </details>
+          {recommendations.length ? (
+            recommendations.map((result, index) => (
+              <ResultCard index={index} key={result.method.id} result={result} />
             ))
           ) : (
             <div className="sm:col-span-2">
-              <EmptyState message="Aucune méthode de démonstration ne correspond à ces filtres. Ajuste le niveau, le capital ou la recherche." />
+              <EmptyState message="Aucune méthode complète ne correspond. Vérifie le niveau local, le capital de ton profil, les prix récents ou les filtres." />
             </div>
           )}
         </div>
+
+        {incompleteMethods.length > 0 && (
+          <div className="border-t border-border/70 bg-background/20 p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <BookOpen aria-hidden="true" className="text-amber-200" size={15} />
+              <div>
+                <h3 className="text-xs font-semibold text-foreground">
+                  Données encore insuffisantes
+                </h3>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  Les valeurs manquantes ne sont pas remplacées par des estimations inventées.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 lg:grid-cols-2">
+              {incompleteMethods.map((result) => (
+                <IncompleteCard key={result.method.id} result={result} />
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
-      <div className="mt-6 flex items-start gap-2 text-[11px] leading-5 text-muted-foreground">
-        <Coins aria-hidden="true" className="mt-0.5 shrink-0 text-primary" size={13} />
-        Les recommandations réelles demanderont un catalogue sourcé avec des rendements documentés
-        et des prix de marché à jour.
+      <div className="mt-5 flex flex-col gap-2 text-[10px] leading-4 text-muted-foreground sm:flex-row sm:justify-between">
+        <span className="flex items-start gap-2">
+          <Coins aria-hidden="true" className="mt-0.5 shrink-0 text-primary" size={13} />
+          Prix d’achat des ingrédients au high, prix de revente au low; la taxe GE est appliquée par
+          unité vendue. Les ventes réelles peuvent différer.
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <Wallet aria-hidden="true" className="text-primary" size={13} />
+          Capital requis : coût des intrants nécessaires à un lot de la méthode.
+        </span>
       </div>
     </>
   );

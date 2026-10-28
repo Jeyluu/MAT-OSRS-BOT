@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Database } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { loadProfilePreferences } from '@/features/profile/profile-storage';
 
 export function PageHeading({
   eyebrow,
@@ -84,20 +85,27 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
-export function formatGp(value: number) {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value);
+export function formatGp(value: number): string {
+  if (loadProfilePreferences().compactNumbers) return formatGpCompact(value);
+  return formatGpFull(value);
 }
 
-export function formatGpCompact(value: number) {
-  if (value >= 1_000_000) {
+export function formatGpCompact(value: number): string {
+  const magnitude = Math.abs(value);
+
+  if (magnitude >= 1_000_000) {
     return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(value / 1_000_000)} M`;
   }
 
-  if (value >= 1_000) {
+  if (magnitude >= 1_000) {
     return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value / 1_000)} k`;
   }
 
-  return formatGp(value);
+  return formatGpFull(value);
+}
+
+function formatGpFull(value: number): string {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value);
 }
 
 export function formatPercent(value: number) {

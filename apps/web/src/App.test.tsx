@@ -2,8 +2,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { App } from './App';
+import { skillingMethods, skillingSkills } from './features/skilling/skilling-catalog';
 
 const nowSeconds = Math.floor(Date.now() / 1_000);
+const skillingMarketIds = [
+  ...new Set(
+    skillingMethods.flatMap((method) => [
+      ...method.inputs.map((item) => item.itemId),
+      ...method.outputs.map((item) => item.itemId),
+    ]),
+  ),
+].filter((id) => id !== 561);
 const testSnapshot = {
   schemaVersion: 2 as const,
   source: 'OSRS Wiki Real-time Prices API' as const,
@@ -11,8 +20,8 @@ const testSnapshot = {
   generatedAt: new Date().toISOString(),
   latestAsOf: nowSeconds,
   fiveMinuteTimestamp: nowSeconds,
-  mappingItemCount: 1,
-  quotedItemCount: 1,
+  mappingItemCount: skillingMarketIds.length + 1,
+  quotedItemCount: skillingMarketIds.length + 1,
   items: [
     {
       id: 561,
@@ -36,6 +45,22 @@ const testSnapshot = {
         lowPriceVolume: 9,
       })),
     },
+    ...skillingMarketIds.map((id) => ({
+      id,
+      name: `Item de test ${id}`,
+      icon: `Item de test ${id}.png`,
+      members: false,
+      buyLimit: 10_000,
+      high: 150,
+      highTime: nowSeconds,
+      low: 100,
+      lowTime: nowSeconds,
+      avgHighPrice: 140,
+      avgLowPrice: 110,
+      highPriceVolume: 100,
+      lowPriceVolume: 100,
+      history: null,
+    })),
   ],
 };
 
@@ -63,6 +88,10 @@ beforeEach(() => {
       compactNumbers: false,
     }),
   );
+  window.localStorage.setItem(
+    'osrs-helper.skilling-levels.v1',
+    JSON.stringify(Object.fromEntries(skillingSkills.map((skill) => [skill, 99]))),
+  );
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => ({
@@ -84,7 +113,7 @@ test('affiche les opportunités calculées et navigue vers le skilling', async (
   fireEvent.click(screen.getByRole('button', { name: 'Skilling' }));
 
   expect(
-    screen.getByRole('heading', { name: 'Choisis une méthode à ton rythme.' }),
+    screen.getByRole('heading', { name: 'Des méthodes, des prix réels.' }),
   ).toBeInTheDocument();
 });
 
@@ -99,14 +128,17 @@ test('filtre les opportunités par nom d’item', async () => {
   expect(screen.getByText(/aucune opportunité ne correspond à ces filtres/i)).toBeInTheDocument();
 });
 
-test('filtre les méthodes de skilling par style', () => {
+test('filtre les méthodes réelles par style', async () => {
   renderApp();
   fireEvent.click(screen.getByRole('button', { name: 'Skilling' }));
+  await screen.findByRole('heading', { name: 'Des méthodes, des prix réels.' });
 
-  fireEvent.click(screen.getByRole('button', { name: 'Actif' }));
+  fireEvent.change(screen.getByLabelText('Filtrer par rythme'), {
+    target: { value: 'Actif' },
+  });
 
-  expect(screen.getByText('Préparer des potions de combat')).toBeInTheDocument();
-  expect(screen.queryByText('Couper des ifs')).not.toBeInTheDocument();
+  expect(screen.getByText('Tisser des drift nets')).toBeInTheDocument();
+  expect(screen.queryByText('Empenner des yew longbow (u)')).not.toBeInTheDocument();
 });
 
 test('enregistre les préférences du profil dans localStorage', () => {
