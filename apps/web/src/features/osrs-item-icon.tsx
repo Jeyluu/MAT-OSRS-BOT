@@ -1,4 +1,5 @@
 import { Package } from 'lucide-react';
+import { useState } from 'react';
 
 interface OsrsItemIconProps {
   readonly icon: string | undefined;
@@ -7,9 +8,11 @@ interface OsrsItemIconProps {
 }
 
 export function OsrsItemIcon({ icon, name, className }: OsrsItemIconProps) {
+  const [failedIconUrl, setFailedIconUrl] = useState<string | null>(null);
   const iconUrl = icon
     ? `https://oldschool.runescape.wiki/images/${encodeURIComponent(icon.replaceAll(' ', '_'))}`
     : undefined;
+  const imageFailed = iconUrl !== undefined && failedIconUrl === iconUrl;
 
   return (
     <span
@@ -17,13 +20,13 @@ export function OsrsItemIcon({ icon, name, className }: OsrsItemIconProps) {
       className={`relative flex items-center justify-center ${className}`}
       role="img"
     >
-      <Package aria-hidden="true" size={16} />
-      {iconUrl && (
+      {(!iconUrl || imageFailed) && <Package aria-hidden="true" size={16} />}
+      {iconUrl && !imageFailed && (
         <img
           alt=""
           className="absolute inset-0 size-full object-contain p-1"
           loading="lazy"
-          onError={(event) => event.currentTarget.remove()}
+          onError={() => setFailedIconUrl(iconUrl ?? null)}
           src={iconUrl}
         />
       )}
